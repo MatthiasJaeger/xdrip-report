@@ -645,7 +645,7 @@ class ReportReadings:
         for reading in self.report_values:
             print(f"value: {reading.bgval} on {datetime.datetime.fromtimestamp(reading.timestamp)}")
 
-def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str]:
+def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str, int, int, bool, bool, bool]:
     """ parses/sanitizes CMD line args
     """
     parser = argparse.ArgumentParser()
