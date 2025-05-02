@@ -272,6 +272,20 @@ class DayReadings:
                 verticalalignment='center',
                 transform=ax.transAxes,
                 family='monospace')
+
+        ax.text(0, -0.43, '\n\nCarbs:',
+                horizontalalignment='left',
+                verticalalignment='center',
+                transform=ax.transAxes,
+                family='monospace',
+                color='g')
+
+        ax.text(0, -0.43, '\n\n'+' '*25+'Basal:',
+                horizontalalignment='left',
+                verticalalignment='center',
+                transform=ax.transAxes,
+                family='monospace',
+                color='b')
         ax.grid()
         for invalidarea in invalidated_limits:
             ax.axvspan(invalidarea[0], invalidarea[1], alpha=0.7, color='grey')
@@ -293,7 +307,7 @@ class DayReadings:
                         bgval,
                         zorder = _ZORDER_PLOT_MARKER_LINE,
                         clip_on = True,
-                        color = 'k',
+                        color = 'g',
                     )
                     ax.text(
                         index + _PLOT_LABEL_XOFFSET,
@@ -302,6 +316,7 @@ class DayReadings:
                         fontsize=_PLOT_LABEL_FONTSIZE,
                         zorder = _ZORDER_PLOT_MARKER_TEXT,
                         clip_on = True,
+                        color = 'g',
                     )
 
                 # render bolus slightly above
@@ -340,6 +355,7 @@ class DayReadings:
                         fontsize=_PLOT_LABEL_FONTSIZE,
                         zorder = _ZORDER_PLOT_MARKER_TEXT,
                         clip_on = True,
+                        color = 'r',
                     )
             index += 1
 
