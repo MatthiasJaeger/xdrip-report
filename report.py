@@ -4,6 +4,7 @@
 """
 
 import argparse
+import json
 import math
 import sqlite3
 import datetime
@@ -65,7 +66,7 @@ _DB_TIMESTAMP_NAME_BG = 'timestamp'
 _DB_FIELD_NAME_SENSOR_START = '_id'
 _DB_TABLE_NAME_SENSORS = 'Sensors'
 _DB_STARTED_NAME_SENSORS = 'started_at'
-_DB_FIELD_NAME_TREATMENTS = 'carbs, insulin'
+_DB_FIELD_NAME_TREATMENTS = 'carbs, insulinJSON'
 _DB_TABLE_NAME_TREATMENTS = 'Treatments'
 _DB_TIMESTAMP_NAME_TREATMENTS = 'timestamp'
 
@@ -87,6 +88,7 @@ class SlotData:
                  bgval: float = -1,
                  newsensor: bool = False,
                  bolus: float = 0.0,
+                 basal: float = 0.0,
                  carbs: float = 0.0,
                  iob: float = 0.0,
                  invalidated: bool = False):
@@ -94,6 +96,7 @@ class SlotData:
         self.timestamp: datetime.datetime = timestamp
         self.newsensor: bool = newsensor
         self.bolus: float = bolus
+        self.basal: float = basal
         self.carbs: float = carbs
         self.iob: float = iob
         self.invalidated: float = invalidated
@@ -185,6 +188,14 @@ class DayReadings:
             insulinsum += reading.bolus
         return insulinsum
 
+    def total_basal(self) -> float:
+        """ returns total bolus applied on day
+        """
+        insulinsum = 0.0
+        for reading in self.dayvalues:
+            insulinsum += reading.basal
+        return insulinsum
+
     def total_ratio(self) -> float:
         """ returns ratio for day
         """
@@ -252,9 +263,10 @@ class DayReadings:
         daystats += f"Est. HbA1c      : {self.hba1c():3.2f}%\n"
         daystats += (f"Time low/in/high: "
                      f"{timelow*100:3.2f}%/{timeok*100:3.2f}%/{timehigh*100:3.2f}%\n")
+        daystats += (f"       {self.total_carbs():3.0f}g  "
+                     f"Bolus: {self.total_bolus():3.1f}        {self.total_basal():2.1f}\n")
         if (self.total_ratio()):
-            daystats += (f"Carbs: {self.total_carbs():3.0f}g  "
-                        f"Insulin: {self.total_bolus():3.1f} Ratio: {self.total_ratio():2.1f}")
+            daystats += (f"Ratio: {self.total_ratio():2.1f}")
         ax.text(0, -0.43, daystats,
                 horizontalalignment='left',
                 verticalalignment='center',
@@ -270,7 +282,7 @@ class DayReadings:
         for reading in self.dayvalues:
             bgval = reading.bgval
             # If plotting carbs or bolus
-            if (plotCarbs and reading.carbs) or (plotBolus and reading.bolus):
+            if (plotCarbs and reading.carbs) or (plotBolus and reading.bolus) or (reading.basal):
                 # a small vertical line showing where the carb/bolus is
 
                 # render carbs slightly below
@@ -306,6 +318,25 @@ class DayReadings:
                         index + _PLOT_LABEL_XOFFSET,
                         bgval + _PLOT_LABEL_YOFFSET,
                         f"{reading.bolus}u",
+                        fontsize=_PLOT_LABEL_FONTSIZE,
+                        zorder = _ZORDER_PLOT_MARKER_TEXT,
+                        clip_on = True,
+                    )
+
+                # render basal at the center
+                if reading.basal:
+                    ax.vlines(
+                        index,
+                        bgval - 2*_PLOT_LABEL_YOFFSET,
+                        bgval - _PLOT_LABEL_YOFFSET,
+                        zorder = _ZORDER_PLOT_MARKER_LINE,
+                        clip_on = True,
+                        color = 'r',
+                    )
+                    ax.text(
+                        index + _PLOT_LABEL_XOFFSET,
+                        bgval - 2*_PLOT_LABEL_YOFFSET - _PLOT_LABEL_SIZE,
+                        f"{reading.basal}u",
                         fontsize=_PLOT_LABEL_FONTSIZE,
                         zorder = _ZORDER_PLOT_MARKER_TEXT,
                         clip_on = True,
@@ -387,15 +418,25 @@ class ReportReadings:
                     break
                 bolus = 0
                 carbs = 0
+                basal = 0
                 for row in c.execute(f"SELECT {_DB_FIELD_NAME_TREATMENTS} "
                                      f"FROM {_DB_TABLE_NAME_TREATMENTS} "
                                      f"WHERE {_DB_TIMESTAMP_NAME_TREATMENTS} >= {match_period_start} "
                                      f"and {_DB_TIMESTAMP_NAME_TREATMENTS} < {match_period_end}"):
 
                     carbs += row[0]
-                    bolus += row[1]
+                    insulinJSON = json.loads(row[1])
+                    for entry in insulinJSON:
+                        if entry["insulin"] in ['FIASP', 'Afrezza', 'Apidra', 'Novorapid', 'Humalog', 'Lispro',
+                                                'Actrapid', ]:
+                            bolus += entry["units"]
+                        elif entry["insulin"] in ['Insulatard', 'Toujeo', 'Lantus', 'Levemir', 'Basaglar', 'Tresiba']:
+                            basal += entry["units"]
+                        else:
+                            print(f'Insulin Type: {entry["insulin"]} unknown.')
                 slotdata.carbs = carbs
                 slotdata.bolus = bolus
+                slotdata.basal = basal
                 # TODO: add IOB here
 
         xdripdb.close()
