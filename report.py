@@ -48,7 +48,7 @@ _NEW_SENSOR_INVALIDATION_PERIOD = 3600*10
 # used for insulin vs. carbs ratio
 _GRAMS_PER_UNIT = 10
 
-_BOTTOMLINE = "xdrip+ report generator v0.2 Dec 2020 Andreas Fiessler/gfornax"
+_BOTTOMLINE = "generated using xdrip+ report generator v0.2 Dec 2020 Andreas Fiessler/gfornax"
 
 # lower boundary, used with 100-X for corresponding upper boundary
 _PERCENTILE_1 = 5
