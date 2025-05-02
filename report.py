@@ -43,7 +43,7 @@ _LOWLEVEL = 70
 _HIGHLEVEL = 170
 
 # ignore any readings from the first 10h after sensor start
-_NEW_SENSOR_INVALIDATION_PERIOD = 3600*10
+_NEW_SENSOR_INVALIDATION_PERIOD = 0 # 3600*10
 
 # used for insulin vs. carbs ratio
 _GRAMS_PER_UNIT = 10
