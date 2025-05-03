@@ -366,7 +366,7 @@ class ReportReadings:
         slot, it depends on the type whether others are discarded or accumulated.
         timestamps are expected in standard UNIX format in seconds.
     """
-    def __init__(self, start_time: int, end_time: int, reading_period: int, mmol: bool):
+    def __init__(self, start_time: int, end_time: int, reading_period: int, mmol: bool, starttime: float):
         assert reading_period > 0, "invalid period"
         assert start_time > 0, "invalid start_time"
         assert end_time > 0, "invalid start_time"
@@ -380,7 +380,9 @@ class ReportReadings:
         self.end_dtime = datetime.datetime.fromtimestamp(end_time)
         # sanitize the beginning of the first day and end of last day just in case
         self.start_dtime_zero = self.start_dtime.replace(minute=0, second=0, hour=0)
+        self.start_dtime_zero += datetime.timedelta(hours=starttime)
         self.end_dtime_max = self.end_dtime.replace(minute=59, second=59, hour=23)
+        self.end_dtime_max += datetime.timedelta(hours=starttime)
 
         self.reading_period = reading_period
         self.report_values: List[SlotData] = []
@@ -702,7 +704,7 @@ class ReportReadings:
         for reading in self.report_values:
             print(f"value: {reading.bgval} on {datetime.datetime.fromtimestamp(reading.timestamp)}")
 
-def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str]:
+def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str, int, int, bool, bool, bool, float]:
     """ parses/sanitizes CMD line args
     """
     parser = argparse.ArgumentParser()
@@ -712,6 +714,7 @@ def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str]:
     parser.add_argument("-e", "--end", help="Report end day YYYY-MM-DD")
     parser.add_argument("-f", "--filename", help="output PDF file name")
     parser.add_argument("-g", "--grid", help="Layout of chart grid. WxH = W per row, H rows per page")
+    parser.add_argument("-t", "--starttime", help="Hours after midnight when the day starts", type=float, default=3.0)
     parser.add_argument("-c", "--carbs", action="store_true", help="Show logged carbs")
     parser.add_argument("-b", "--bolus", action="store_true", help="Show logged bolus intake")
     parser.add_argument("--mmol", action="store_true", help="Display units in mmol/L")
@@ -774,12 +777,13 @@ def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str]:
     carbs = args.carbs
     bolus = args.bolus
     mmol = args.mmol
+    starttime = args.starttime
 
-    return dbfile, patname, stime, etime, filename, rows, columns, carbs, bolus, mmol
+    return dbfile, patname, stime, etime, filename, rows, columns, carbs, bolus, mmol, starttime
 
 if __name__ == '__main__':
-    dbfile, patname, stime, etime, filename, rows, columns, carbs, bolus, mmol = parse_args()
-    report = ReportReadings(int(stime.timestamp()), int(etime.timestamp()), 60*_PERIOD, mmol)
+    dbfile, patname, stime, etime, filename, rows, columns, carbs, bolus, mmol, starttime = parse_args()
+    report = ReportReadings(int(stime.timestamp()), int(etime.timestamp()), 60*_PERIOD, mmol, starttime)
     report.insert_readings(dbfile)
     print("Creating report PDF")
     report.create_report_page(patname, filename, rows, columns, carbs, bolus)
