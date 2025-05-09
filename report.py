@@ -42,9 +42,6 @@ _PLOT_LABEL_YOFFSET = 14
 _LOWLEVEL = 70
 _HIGHLEVEL = 170
 
-# ignore any readings from the first 10h after sensor start
-_NEW_SENSOR_INVALIDATION_PERIOD = 0 # 3600*10
-
 # used for insulin vs. carbs ratio
 _GRAMS_PER_UNIT = 10
 
@@ -319,7 +316,7 @@ class ReportReadings:
         slot, it depends on the type whether others are discarded or accumulated.
         timestamps are expected in standard UNIX format in seconds.
     """
-    def __init__(self, start_time: int, end_time: int, reading_period: int, mmol: bool):
+    def __init__(self, start_time: int, end_time: int, reading_period: int, mmol: bool, ignore_first_hours: float):
         assert reading_period > 0, "invalid period"
         assert start_time > 0, "invalid start_time"
         assert end_time > 0, "invalid start_time"
@@ -328,6 +325,7 @@ class ReportReadings:
         self.mmol = mmol
         self.start_time = start_time
         self.end_time = end_time
+        self.ignore_first_hours = ignore_first_hours
 
         self.start_dtime = datetime.datetime.fromtimestamp(start_time)
         self.end_dtime = datetime.datetime.fromtimestamp(end_time)
@@ -383,7 +381,7 @@ class ReportReadings:
                     slotdata.newsensor = True
                     slotdata.invalidated = True
                     sensor_invalidation_start = match_period_start
-                    sensor_invalidation_end = match_period_start + _NEW_SENSOR_INVALIDATION_PERIOD*1000
+                    sensor_invalidation_end = match_period_start + self.ignore_first_hours*3600*1000
                     break
                 bolus = 0
                 carbs = 0
@@ -645,7 +643,7 @@ class ReportReadings:
         for reading in self.report_values:
             print(f"value: {reading.bgval} on {datetime.datetime.fromtimestamp(reading.timestamp)}")
 
-def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str]:
+def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str, int, int, bool, bool, bool, float]:
     """ parses/sanitizes CMD line args
     """
     parser = argparse.ArgumentParser()
@@ -658,6 +656,8 @@ def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str]:
     parser.add_argument("-c", "--carbs", action="store_true", help="Show logged carbs")
     parser.add_argument("-b", "--bolus", action="store_true", help="Show logged bolus intake")
     parser.add_argument("--mmol", action="store_true", help="Display units in mmol/L")
+    parser.add_argument("-i", "--ignorefirst", help="Ignore first hours of sensor data", type=float,
+                        default=3.0)
     args = parser.parse_args()
 
     rows = _DEFAULT_VERSIZE
@@ -717,12 +717,13 @@ def parse_args() -> Tuple[str, str, datetime.datetime, datetime.datetime, str]:
     carbs = args.carbs
     bolus = args.bolus
     mmol = args.mmol
+    ignore_first_hours = args.ignorefirst
 
-    return dbfile, patname, stime, etime, filename, rows, columns, carbs, bolus, mmol
+    return dbfile, patname, stime, etime, filename, rows, columns, carbs, bolus, mmol, ignore_first_hours
 
 if __name__ == '__main__':
-    dbfile, patname, stime, etime, filename, rows, columns, carbs, bolus, mmol = parse_args()
-    report = ReportReadings(int(stime.timestamp()), int(etime.timestamp()), 60*_PERIOD, mmol)
+    dbfile, patname, stime, etime, filename, rows, columns, carbs, bolus, mmol, ignore_first_hours = parse_args()
+    report = ReportReadings(int(stime.timestamp()), int(etime.timestamp()), 60*_PERIOD, mmol, ignore_first_hours)
     report.insert_readings(dbfile)
     print("Creating report PDF")
     report.create_report_page(patname, filename, rows, columns, carbs, bolus)
